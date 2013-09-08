@@ -6,7 +6,7 @@
 int main()
 {
     /* 1st parameter of `fts_open' is a NULL terminated array of strings */
-    char * const path_argv[] = { ".", NULL };
+    char * const path_argv[] = { "/Users/styx/zion/projects/ssearcher", NULL };
     FTSENT *entry = NULL;
     /* `FTS_LOGICAL' will follow the symbolic links and return the real file */
     FTS *pfts = fts_open(path_argv, FTS_LOGICAL, NULL);
@@ -15,8 +15,8 @@ int main()
     /* loop to read entries from this hierarchy */
     while (entry = fts_read(pfts)) {
         /* struture of `FTSENT' is specified in mannual */
-        if (S_ISREG(entry->fts_statp->st_mode))
-            printf("%s %s %d\n", entry->fts_path, entry->fts_accpath, entry->fts_level);
+        /* if (S_ISREG(entry->fts_statp->st_mode)) */
+            printf("%s %d\n", entry->fts_path, entry->fts_level);
     }
     fts_close(pfts);
     return 0;

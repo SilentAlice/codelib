@@ -1,0 +1,74 @@
+#! /usr/bin/perl -w
+# This is a perl script I used to genenrate a Jekyll/Octopress page
+# from my existing markdown notes.
+# I write down notes in markdown format at ease but they are
+# not suitable for octopress.
+# So I wrote this script to get things easy.
+
+use strict;
+use Getopt::Std;
+use vars qw/$note_dir, $post_dir/;
+
+$note_dir = "/home/styx/notes/";
+$post_dir = "/home/styx/octopress/source/_posts/";
+
+my %args;
+my ($infile, $outfile);
+getopt('iotdc', \%args);
+
+# Get current date
+my ($day, $mon, $year) = (localtime)[3,4,5];
+my $curdate = "${\($year+1900)}-${\($mon+1)}-$day";
+my $tempfn;
+
+# Check input file
+if (defined($args{i})) {
+    $infile = $args{i};
+} else {
+    die "Usage: md2post -i inputfile [-o outfile] [-t title] [-d date] [-c category]\n";
+}
+
+# Determine output filename
+if (defined($args{o})) {
+    $outfile = $args{o};
+} else {
+    if (defined($args{t})) {
+	$tempfn = lc $args{t};
+	$tempfn =~ s/ /_/g;	# Title input is splitted by spaces, change to '_'
+	$outfile = $curdate."-".$tempfn.".md";
+    } else {
+	$outfile = $curdate."-".(split(/\./, $args{i}))[0].".md";
+    }
+}
+
+open MDFILE, "<$infile\n" || die "Fail to open input: $infile\n";
+open POST, ">$outfile\n" || die "Fail to open output: $outfile\n";
+
+#print +(split /\./, $args{i})[0],"\n"; # W.T.F ??????????
+
+my $dash = '-' x 3;
+
+my $title = defined($args{t})?$args{t}:+(split /\./, $args{i})[0];
+my $date = defined($args{d})?$args{d}:$curdate;
+my $category = defined($args{c})?$args{c}:"survey";
+
+# Output the header information of a Jekyll page
+print POST $dash."\n";
+print POST "layout: post\n";
+print POST "title: \"".$title."\"\n";
+print POST "date: ".$date."\n";
+print POST "comment: true\n";
+print POST "category: ".$category."\n";
+print POST $dash."\n\n";
+
+# Simply copy the content
+while (<MDFILE>) {
+    if ($_ =~ /^\#/) {
+	print POST "#".$_;
+    } else {
+	print POST $_;
+    }
+}
+close MDFILE;
+close POST;
+print "${\($year+1900)}-${\($mon+1)}-$day argument count is ", scalar @ARGV, "\n";

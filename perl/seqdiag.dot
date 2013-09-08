@@ -1,0 +1,117 @@
+digraph G{
+ranksep=.1; size = "7.5,7.5";
+node [fontsize=10, shape=point, color=grey, label=""];
+edge [arrowhead=none, style=filled, color=grey];
+
+AM_PCL -> SVCTRL [style=invis]
+SVCTRL -> SVADM [style=invis]
+SVADM -> SOCK [style=invis]
+SOCK -> VSP_COM [style=invis]
+
+/**
+* AM_PCL
+**/
+AM_PCL [color=black, shape=box, label="AM_PCL"];
+AM_PCL -> AM_PCL10;
+AM_PCL10 -> AM_PCL11;
+AM_PCL11 -> AM_PCL12;
+AM_PCL12 -> AM_PCL13;
+AM_PCL13 -> AM_PCL14;
+AM_PCL14 -> AM_PCL15;
+AM_PCL15 -> AM_PCL16;
+AM_PCL16 -> AM_PCL17;
+AM_PCL17 -> AM_PCL18;
+AM_PCL18 -> AM_PCL19;
+AM_PCL19 -> AM_PCL20;
+
+/**
+* SVCTRL
+**/
+SVCTRL [color=black, shape=box, label="SVCTRL"];
+SVCTRL -> SVCTRL10;
+SVCTRL10 -> SVCTRL11;
+SVCTRL11 -> SVCTRL12;
+SVCTRL12 -> SVCTRL13;
+SVCTRL13 -> SVCTRL14;
+SVCTRL14 -> SVCTRL15;
+SVCTRL15 -> SVCTRL16;
+SVCTRL16 -> SVCTRL17;
+SVCTRL17 -> SVCTRL18;
+SVCTRL18 -> SVCTRL19;
+SVCTRL19 -> SVCTRL20;
+
+/**
+* SVADM
+**/
+SVADM [color=black, shape=box, label="SVADM"];
+SVADM -> SVADM10;
+SVADM10 -> SVADM11;
+SVADM11 -> SVADM12;
+SVADM12 -> SVADM13;
+SVADM13 -> SVADM14;
+SVADM14 -> SVADM15;
+SVADM15 -> SVADM16;
+SVADM16 -> SVADM17;
+SVADM17 -> SVADM18;
+SVADM18 -> SVADM19;
+SVADM19 -> SVADM20;
+
+/**
+* SOCK
+**/
+SOCK [color=black, shape=box, label="SOCK"];
+SOCK -> SOCK10;
+SOCK10 -> SOCK11;
+SOCK11 -> SOCK12;
+SOCK12 -> SOCK13;
+SOCK13 -> SOCK14;
+SOCK14 -> SOCK15;
+SOCK15 -> SOCK16;
+SOCK16 -> SOCK17;
+SOCK17 -> SOCK18;
+SOCK18 -> SOCK19;
+SOCK19 -> SOCK20;
+
+/**
+* VSP_COM
+**/
+VSP_COM [color=black, shape=box, label="VSP_COM"];
+VSP_COM -> VSP_COM10;
+VSP_COM10 -> VSP_COM11;
+VSP_COM11 -> VSP_COM12;
+VSP_COM12 -> VSP_COM13;
+VSP_COM13 -> VSP_COM14;
+VSP_COM14 -> VSP_COM15;
+VSP_COM15 -> VSP_COM16;
+VSP_COM16 -> VSP_COM17;
+VSP_COM17 -> VSP_COM18;
+VSP_COM18 -> VSP_COM19;
+VSP_COM19 -> VSP_COM20;
+
+{ rank = same; AM_PCL; SVCTRL; SVADM; SOCK; VSP_COM; }
+{ rank = same; AM_PCL10; SVCTRL10; SVADM10; SOCK10; VSP_COM10; }
+{ rank = same; AM_PCL11; SVCTRL11; SVADM11; SOCK11; VSP_COM11; }
+{ rank = same; AM_PCL12; SVCTRL12; SVADM12; SOCK12; VSP_COM12; }
+{ rank = same; AM_PCL13; SVCTRL13; SVADM13; SOCK13; VSP_COM13; }
+{ rank = same; AM_PCL14; SVCTRL14; SVADM14; SOCK14; VSP_COM14; }
+{ rank = same; AM_PCL15; SVCTRL15; SVADM15; SOCK15; VSP_COM15; }
+{ rank = same; AM_PCL16; SVCTRL16; SVADM16; SOCK16; VSP_COM16; }
+{ rank = same; AM_PCL17; SVCTRL17; SVADM17; SOCK17; VSP_COM17; }
+{ rank = same; AM_PCL18; SVCTRL18; SVADM18; SOCK18; VSP_COM18; }
+{ rank = same; AM_PCL19; SVCTRL19; SVADM19; SOCK19; VSP_COM19; }
+{ rank = same; AM_PCL20; SVCTRL20; SVADM20; SOCK20; VSP_COM20; }
+
+/*events and transitions*/
+edge [style=filled, fontsize=8, weight=0, arrowtail=none,
+arrowhead=normal, color=black];
+VSP_COM10 -> SVADM11 [label="UNKNOWN"];
+SVADM11 -> SVADM11 [label="internal"];
+SOCK12 -> SVCTRL12 [labelangle=10, labeldistance=6,
+taillabel="SOCK_STRING"];
+SOCK13 -> AM_PCL13 [labelangle=10, labeldistance=6,
+taillabel="SOCK_STRING"];
+AM_PCL14 -> SVCTRL17 [label="UNKNOWN"];
+AM_PCL15 -> SVADM15 [labelangle=10, labeldistance=6,
+taillabel="UNKNOWN"];
+
+}
