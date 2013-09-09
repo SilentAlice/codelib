@@ -8,10 +8,18 @@ package main
 import (
 	"fmt"
 	"bufio"
+	"strings"
+	"io"
 	"os"
 	"net/smtp"
 	"code.google.com/p/gopass"
 )
+
+type SInfo struct {
+	snum string
+	name string
+	addr string
+}
 
 func getAuthInfo() (string, string, error) {
 	reader := bufio.NewReader(os.Stdin)
@@ -20,7 +28,11 @@ func getAuthInfo() (string, string, error) {
     username, _ := reader.ReadString('\n')
 
 	password, passerr := gopass.GetPass("Enter password: ")
-	return username, password, passerr
+	return strings.Trim(username, "\n"), password, passerr
+}
+
+func makeMessage(each SInfo) string {
+	return each.snum
 }
 
 func main() {
@@ -29,21 +41,50 @@ func main() {
 		fmt.Println(err)
 	}
 
-	// XXX read email addresses from a file
-	recver := []string{ "andygordo@163.com" }
+	// read email addresses from a file
+	fmt.Print("Directory with address list: ")
+	addrListPath, err := bufio.NewReader(os.Stdin).ReadString('\n')
+	addrListFile, err := os.Open(strings.Trim(addrListPath, "\n"))
+	if err != nil { panic(err) }
+	addrListBuf := bufio.NewReader(addrListFile)
+
+	// var m map[string]SInfo = make(map[string]string)
+	// 50 students for initial set
+	var studentList []SInfo = make([]SInfo, 0, 50)
+	for {
+		line, err := addrListBuf.ReadString('\n')
+		if err != nil && err != io.EOF { panic(err) }
+		entry := strings.Split(strings.Trim(line, "\n"), " ")
+
+		// make sure the line indeed has 3 parts
+		if len(entry) == 3 {
+			studentList = append(studentList, SInfo{ entry[0], entry[1], entry[2] })
+		}
+		// the last line will return io.EOF
+		if err == io.EOF { break }
+	}
 
 	// to avoid server recognition, use gmail as default
 	auth := smtp.PlainAuth("", username, password, "smtp.gmail.com")
 
-	// XXX will fill message with student lab grades
-	msg := "hello"
-	msgbytes := []byte(msg)
+	// fill message with student lab grades
+	for _, each := range studentList {
+		msgbytes := []byte(makeMessage(each))
 
-	err = smtp.SendMail("smtp.gmail.com:587", auth, username, recver, msgbytes);
-	if err != nil {
-		fmt.Println(err)
+		err = smtp.SendMail("smtp.gmail.com:587", auth, username, []string{ each.addr }, msgbytes);
+		if err != nil {
+			fmt.Println(err)
+		}
 	}
 }
+
+
+
+
+
+
+
+
 
 
 
