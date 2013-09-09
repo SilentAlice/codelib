@@ -6,9 +6,9 @@ import (
 )
 
 func TestStart(t *testing.T) {
-	bar := PBar{ 10, 0 }
+	bar := PBar{}
 	c := make(chan uint64)
-	go bar.Start(c)
+	go bar.Start(10, c)
 	for i := 0; i < 11; i++ {
 		time.Sleep(1 * time.Second)
 		c <- 1
