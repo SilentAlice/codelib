@@ -31,6 +31,32 @@ func getAuthInfo() (string, string, error) {
 	return strings.Trim(username, "\n"), password, passerr
 }
 
+func readStudentInfo() []SInfo {
+	// read email addresses from a file
+	fmt.Print("Directory with address list: ")
+	addrListPath, err := bufio.NewReader(os.Stdin).ReadString('\n')
+	addrListFile, err := os.Open(strings.Trim(addrListPath, "\n"))
+	if err != nil { panic(err) }
+	addrListBuf := bufio.NewReader(addrListFile)
+
+	// var m map[string]SInfo = make(map[string]string)
+	// 50 students for initial set
+	var sl []SInfo = make([]SInfo, 0, 50)
+	for {
+		line, err := addrListBuf.ReadString('\n')
+		if err != nil && err != io.EOF { panic(err) }
+		entry := strings.Split(strings.Trim(line, "\n"), " ")
+
+		// make sure the line indeed has 3 parts
+		if len(entry) == 3 {
+			sl = append(sl, SInfo{ entry[0], entry[1], entry[2] })
+		}
+		// the last line will return io.EOF
+		if err == io.EOF { break }
+	}
+	return sl
+}
+
 func makeMessage(each SInfo) string {
 	return each.snum
 }
@@ -41,29 +67,7 @@ func main() {
 		fmt.Println(err)
 	}
 
-	// read email addresses from a file
-	fmt.Print("Directory with address list: ")
-	addrListPath, err := bufio.NewReader(os.Stdin).ReadString('\n')
-	addrListFile, err := os.Open(strings.Trim(addrListPath, "\n"))
-	if err != nil { panic(err) }
-	addrListBuf := bufio.NewReader(addrListFile)
-
-	// var m map[string]SInfo = make(map[string]string)
-	// 50 students for initial set
-	var studentList []SInfo = make([]SInfo, 0, 50)
-	for {
-		line, err := addrListBuf.ReadString('\n')
-		if err != nil && err != io.EOF { panic(err) }
-		entry := strings.Split(strings.Trim(line, "\n"), " ")
-
-		// make sure the line indeed has 3 parts
-		if len(entry) == 3 {
-			studentList = append(studentList, SInfo{ entry[0], entry[1], entry[2] })
-		}
-		// the last line will return io.EOF
-		if err == io.EOF { break }
-	}
-
+	studentList := readStudentInfo()
 	// to avoid server recognition, use gmail as default
 	auth := smtp.PlainAuth("", username, password, "smtp.gmail.com")
 
