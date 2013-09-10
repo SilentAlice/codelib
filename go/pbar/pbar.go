@@ -7,6 +7,13 @@ import (
 	"syscall"
 )
 
+const (
+	barBox = 3
+	percent = 5
+	fraction = 24
+	minw = barBox + percent + fraction
+)
+
 // defined in <sys/ioctl.h>
 type winsize struct {
 	ts_lines, ts_cols uint16
@@ -35,11 +42,22 @@ func (e *PBarError) Error() string {
 }
 
 func (bar *PBar) updateBar() {
-	var bw int = int(bar.finish * uint64(bar.termsz.ts_cols)  / bar.total)
+	if bar.termsz.ts_cols <= minw {
+		// fall back to text mode
+	}
+	// xxx bw for bar width, I should try to make it even
+	var bw = bar.finish * uint64(bar.termsz.ts_cols - minw)  / bar.total
 	// really ugly
-	fmt.Print(strings.Replace(fmt.Sprintf("\r%0*d", bw, 0), "0", "=", -1))
+	// fmt.Print(strings.Replace(fmt.Sprintf("\r%0*d", bw, 0), "0", "=", -1))
+
+	fmt.Print("\r" +
+		// percentage number includes the '%' and a space
+		fmt.Sprintf("%*d%% ", percent-2, int(bar.finish * 100 / bar.total)) +
+		"[" + strings.Repeat("=", int(bw)) + ">" +
+		strings.Repeat(" ", int(bar.termsz.ts_cols - minw - uint16(bw))) +"]")
+
 	if bar.finish == bar.total {
-		fmt.Println("")
+		fmt.Print("\n")
 	}
 }
 
@@ -68,18 +86,3 @@ func (bar *PBar) Start(target uint64, c chan uint64) error {
 	}
 	return nil
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
