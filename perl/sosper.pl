@@ -22,7 +22,7 @@ sub read_data {
   while (<DATA>) {
     s/(\r?\n?)$//g;		  # remove trailing newline
     my @values = split("\t", $_, -1); # split values
-    print scalar(@values), "\n";
+    # print scalar(@values), "\n";
     # print @values, "\n";
     # while (scalar @values != 7) { # fill empty values
     #   push @values, "";
@@ -41,9 +41,36 @@ sub get_column_name {
   return $result;
 }
 
+sub apply_filter {
+  # my $result = shift->(shift);
+  my $func = shift;
+  my $arg = shift;
+  my $result = $func->($arg);
+  last if ($result == 0);
+}
+
+sub filter_SOSP {
+  # print Dumper shift;
+  my %income = shift;
+  # my $inp = shift;
+  my $sosp = $income{'events'};
+  print Dumper \%income;
+  if ($sosp =~ m/SOSP/ig) {
+    return 1;
+  } else {
+    return 0;
+  }
+}
+
 read_data();
 
+for my $entry (@attendee_list) {
+  apply_filter(\&filter_SOSP, $entry);
+  print Dumper $entry;
+  print "\n";
+}
+
 # for $entry in 
-print Dumper \@attendee_list;
+# print Dumper \@attendee_list;
 
 close DATA;
