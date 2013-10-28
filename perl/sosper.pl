@@ -41,20 +41,22 @@ sub get_column_name {
   return $result;
 }
 
+# apply filter to defined filter subroutines
+# subroutines should return 0 for skip the current entry and
+# 1 for accept the entry
 sub apply_filter {
   # my $result = shift->(shift);
   my $func = shift;
   my $arg = shift;
   my $result = $func->($arg);
-  last if ($result == 0);
+  next if ($result == 0);
 }
 
 sub filter_SOSP {
-  # print Dumper shift;
-  my %income = shift;
-  # my $inp = shift;
-  my $sosp = $income{'events'};
-  print Dumper \%income;
+  my $income = shift;		  # `income' is also a reference
+  my $sosp = $income->{'events'}; # so `$income{'events'} is wrong
+
+  # test if the events contains SOSP
   if ($sosp =~ m/SOSP/ig) {
     return 1;
   } else {
@@ -65,7 +67,7 @@ sub filter_SOSP {
 read_data();
 
 for my $entry (@attendee_list) {
-  apply_filter(\&filter_SOSP, $entry);
+  apply_filter(\&filter_SOSP, $entry); # `$entry' is a reference
   print Dumper $entry;
   print "\n";
 }
