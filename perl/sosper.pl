@@ -1,4 +1,5 @@
 #!/usr/bin/env perl
+use 5.010;
 
 use strict;
 use Data::Dumper;
@@ -7,6 +8,7 @@ use Locale::Object::Continent;
 open DATA, "<", shift || die "fail to open data file";
 
 my %country_hash;
+my %continent_cnt;
 
 my @attendee_list;
 my $cnum = 0;
@@ -30,7 +32,8 @@ my %colums = (
 	      "3" => "country",
 	      "4" => "regtype",
 	      "5" => "events",
-	      "6" => "workshop"
+	      "6" => "workshop",
+	      "7" => "charge"
 	     );
 
 my $student_academics;
@@ -286,7 +289,7 @@ sub read_data {
 sub get_column_name {
   # print $cnum, "\n";
   my $result = $colums{$cnum};
-  $cnum = ($cnum + 1) % 7;
+  $cnum = ($cnum + 1) % scalar keys %colums;
   return $result;
 }
 
@@ -328,7 +331,7 @@ sub filter_SOSP {
   my $workshop = $income->{'workshop'};
 
   # test if the events contains SOSP
-  if ($sosp =~ m/SOSP/ig || ($sosp eq "" && $workshop eq "")) {
+  if ($sosp =~ m/SOSP/ig || $sosp eq "") {
     return 1;
   } else {
     return 0;
@@ -365,6 +368,17 @@ sub filter_geo {
   my $country = $income->{'country'};
 
   $geo_cnt{$country}++;
+
+  if (grep { $country eq $_ } @{$country_hash{'Asia'}}) {
+    $continent_cnt{'Asia'}++;
+  } elsif (grep { $country eq $_ } @{$country_hash{'Europe'}}) {
+    $continent_cnt{'Europe'}++;
+  } elsif (grep { $country eq $_ } @{$country_hash{'North America'}}) {
+    $continent_cnt{'North America'}++;
+  } else {
+    $continent_cnt{'Other'}++;
+  }
+
 }
 
 sub filter_company {
@@ -414,14 +428,14 @@ for my $entry (@attendee_list) {
   apply_filter(\&filter_company, $entry);
 }
 
-print "total_cnt: ", $total_cnt, "\n";
-print "sosp_cnt: ", $sosp_cnt, "\n";
+print "total_cnt\t", $total_cnt, "\n";
+print "sosp_cnt\t", $sosp_cnt, "\n";
 # print Dumper \%workshop_cnt;
 dump_hash(\%workshop_cnt);
 
 print "\nBreak down of regtype:\n";
-print "Students: ", $regtype_student, "\n";
-print "Non-Students: ", $regtype_nonstudent, "\n";
+print "Students\t", $regtype_student, "\n";
+print "Non-Students\t", $regtype_nonstudent, "\n";
 # print Dumper \%regtype_cnt, "\n";
 dump_hash(\%regtype_cnt);
 
@@ -430,6 +444,8 @@ print "\nBreak down of geographic locations:\n";
 # print "Non-Students: ", $regtype_nonstudent, "\n";
 # print Dumper \%geo_cnt, "\n";
 dump_hash(\%geo_cnt);
+print "\n";
+dump_hash(\%continent_cnt);
 
 print "\nBreakdown of companies:\n";
 print "student\t$student_academics\n";
