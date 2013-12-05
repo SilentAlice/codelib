@@ -16,6 +16,7 @@ my $cnum = 0;
 my %workshop_cnt;
 my $sosp_cnt = 0;
 my $total_cnt = 0;
+my $wstotal_cnt = 0;
 
 # regtype breakdown
 my %regtype_cnt;
@@ -29,11 +30,13 @@ my %colums = (
 	      "0" => "id",
 	      "1" => "name",
 	      "2" => "company",
-	      "3" => "country",
-	      "4" => "regtype",
-	      "5" => "events",
-	      "6" => "workshop",
-	      "7" => "charge"
+	      "3" => "regdate",
+	      "4" => "country",
+	      "5" => "regtype",
+	      "6" => "events",
+	      "7" => "workshop",
+	      "8" => "charge",
+	      "9" => "lastname"
 	     );
 
 my $student_academics;
@@ -410,6 +413,7 @@ for my $entry (@attendee_list) {
 # 2.
 for my $entry (@attendee_list) {
   apply_filter(\&filter_workshop, $entry);
+  $wstotal_cnt++;
 }
 
 # 3.
@@ -430,6 +434,7 @@ for my $entry (@attendee_list) {
 
 print "total_cnt\t", $total_cnt, "\n";
 print "sosp_cnt\t", $sosp_cnt, "\n";
+print "wstotal_cnt\t", $wstotal_cnt, "\n";
 # print Dumper \%workshop_cnt;
 dump_hash(\%workshop_cnt);
 
