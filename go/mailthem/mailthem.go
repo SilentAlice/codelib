@@ -79,11 +79,15 @@ func makeMessage(each SInfo, header map[string]string) (msg string) {
 		buf.WriteString(v)
 		buf.WriteString("\r\n")
 	}
+	buf.Write([]byte("不好意思，刚才发邮件的程序写错了=。=，以下为正确内容。。。\n\n"))
 	buf.Write([]byte(each.name))
 	buf.Write([]byte(" 你好：\n"))
-	buf.Write([]byte("Lab 1 的答辩安排在 "))
-	buf.Write([]byte(" 10 月 16 日晚上 6 点"))
-	buf.Write([]byte("，地点在软件大楼 3402，请做好准备。如有疑问请回复邮件，谢谢。"))
+	buf.Write([]byte("Lab 2+3 的答辩安排在如下几个时间段： \n"))
+	buf.Write([]byte("12 月 14 日周六上午 9 点到下午 5 点；12 月 15 日周日上午 9 点到下午 5 点；12 月 16 日周一下午 2 点到晚上 8 点"))
+	buf.Write([]byte("地点在软件大楼 3402，找助教洪扬、施佳鑫、陈庆澍。答辩的内容主要是 lab2 和 lab3 的涉及到的问题，各问 1~2 个，以及关于你的代码设计问一两个问题。考虑到接近期末了，如果你已经完成 lab4 也可以一起答辩掉，可以节省你们的时间。因为时间有点久，如果你们对代码有点忘记了，建议你们可以先复习一下以前的代码和设计，lab 的一部分内容也会出现在期末试卷中，所以请认真复习。\n"))
+	buf.Write([]byte("如果周六和周日你还没有完成 lab4 的话，在 12 月 20 日下午 2 点到晚上 8 店进行 lab4 的答辩\n"))
+	buf.Write([]byte("如果有同学邮箱登记错误没有收到邮件，请相互告知一下。如有疑问请回复邮件，谢谢。\n"))
+	buf.Write([]byte("如果你有由于时间关系有特殊要求，可以单独联系我，你可以单独来答辩，最晚最好不要超过 12 月 22 日"))
 
 	buf.WriteString("\n\n----------\n")
 	buf.WriteString("Yang Hong\n")
@@ -108,7 +112,7 @@ func main() {
 
 	// fill message with student lab grades
 	for _, each := range sl {
-		title := "Lab 1 答辩安排"
+		title := "Lab 2/3/4 答辩安排"
 		header := make(map[string]string)
 		header["From"] = username
 		header["To"] = each.addr
