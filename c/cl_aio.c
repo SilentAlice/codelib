@@ -18,6 +18,13 @@ void finish_aio(union sigval val) {
     close(fd);
 }
 
+void sigusr1_handler(int arg) {
+    printf("T%x aio finished\n", pthread_self());
+    fin = 1;
+    aio_return(&aio_file);
+    close(fd);
+}
+
 int main(int argc, char *argv[])
 {
     char buf[4096];
@@ -48,11 +55,23 @@ int main(int argc, char *argv[])
     aio_file.aio_offset = 0;
     aio_file.aio_buf = buf;
     aio_file.aio_nbytes = sizeof buf;
-    /* aio_file.aio_sigevent.sigev_notify = SIGEV_NONE; */
+#ifdef __MACH__
+    aio_file.aio_sigevent.sigev_notify = SIGEV_SIGNAL;
+    aio_file.aio_sigevent.sigev_signo = SIGUSR1;
+
+    struct sigaction sa;
+    sa.sa_handler = sigusr1_handler;
+    sigemptyset (&sa.sa_mask);
+    sa.sa_flags = 0;
+
+    sigaction(SIGUSR1, &sa, NULL);
+#elif __linux__
     aio_file.aio_sigevent.sigev_notify = SIGEV_THREAD;
     aio_file.aio_sigevent.sigev_notify_function = finish_aio;
+#endif
+
     aio_file.aio_sigevent.sigev_notify_attributes = NULL;
-    aio_file.aio_sigevent.sigev_value.sival_ptr = &aio_file;  
+    aio_file.aio_sigevent.sigev_value.sival_ptr = &aio_file;
 
     /* aio_cancel(fd, NULL); */
     int ret = aio_read(&aio_file);
