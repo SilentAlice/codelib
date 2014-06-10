@@ -9,10 +9,13 @@ import (
 	"bufio"
 	"bytes"
 	"code.google.com/p/gopass"
+	"encoding/base64"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net/smtp"
 	"os"
+	"path"
 	"strings"
 )
 
@@ -22,6 +25,8 @@ type SInfo struct {
 	name string
 	addr string
 }
+
+var boundary = "f46d043c813270fc6b04c2d223da"
 
 // getAuthInfo get smtp authentication username and password
 // from command line using gopass
@@ -69,8 +74,38 @@ func readStudentInfo() []SInfo {
 	return sl
 }
 
+func readAttachInfo() (filename string, content []byte) {
+	fmt.Print("Attachment filename: ")
+
+	filename, err := bufio.NewReader(os.Stdin).ReadString('\n')
+	if err != nil {
+		panic(err)
+	}
+
+	content, err = ioutil.ReadFile(strings.Trim(filename, "\n"))
+	if err != nil {
+		panic(err)
+	}
+	return filename, content
+}
+
+func readMailBody() (body []byte) {
+	fmt.Print("Body file path: ")
+
+	filename, err := bufio.NewReader(os.Stdin).ReadString('\n')
+	if err != nil {
+		panic(err)
+	}
+
+	body, err = ioutil.ReadFile(strings.Trim(filename, "\n"))
+	if err != nil {
+		panic(err)
+	}
+	return body
+}
+
 // makeMessage generates message contents for each student
-func makeMessage(each SInfo, header map[string]string) (msg string) {
+func makeMessage(each SInfo, header map[string]string, body []byte, attachName string, content []byte) (msg string) {
 	var buf bytes.Buffer // A Buffer needs no initialization.
 
 	for k, v := range header {
@@ -79,23 +114,36 @@ func makeMessage(each SInfo, header map[string]string) (msg string) {
 		buf.WriteString(v)
 		buf.WriteString("\r\n")
 	}
-	buf.Write([]byte("不好意思，刚才发邮件的程序写错了=。=，以下为正确内容。。。\n\n"))
-	buf.Write([]byte(each.name))
-	buf.Write([]byte(" 你好：\n"))
-	buf.Write([]byte("Lab 2+3 的答辩安排在如下几个时间段： \n"))
-	buf.Write([]byte("12 月 14 日周六上午 9 点到下午 5 点；12 月 15 日周日上午 9 点到下午 5 点；12 月 16 日周一下午 2 点到晚上 8 点"))
-	buf.Write([]byte("地点在软件大楼 3402，找助教洪扬、施佳鑫、陈庆澍。答辩的内容主要是 lab2 和 lab3 的涉及到的问题，各问 1~2 个，以及关于你的代码设计问一两个问题。考虑到接近期末了，如果你已经完成 lab4 也可以一起答辩掉，可以节省你们的时间。因为时间有点久，如果你们对代码有点忘记了，建议你们可以先复习一下以前的代码和设计，lab 的一部分内容也会出现在期末试卷中，所以请认真复习。\n"))
-	buf.Write([]byte("如果周六和周日你还没有完成 lab4 的话，在 12 月 20 日下午 2 点到晚上 8 店进行 lab4 的答辩\n"))
-	buf.Write([]byte("如果有同学邮箱登记错误没有收到邮件，请相互告知一下。如有疑问请回复邮件，谢谢。\n"))
-	buf.Write([]byte("如果你有由于时间关系有特殊要求，可以单独联系我，你可以单独来答辩，最晚最好不要超过 12 月 22 日"))
 
-	buf.WriteString("\n\n----------\n")
-	buf.WriteString("Yang Hong\n")
-	buf.WriteString("hy.styx@gmail.com\n")
-	buf.WriteString("Institute of Parallel and Distributed Systems")
-	// msg = each.name + " 你好：\n" +
+	if attachName != "" {
+		buf.WriteString("Content-Type: multipart/mixed; boundary=" + boundary + "\r\n")
+		buf.WriteString("--" + boundary + "\r\n")
+	}
+
+	buf.WriteString("Content-Type: text/plain; charset=\"utf-8\"\r\n")
+
+	// start of body
+	buf.Write(body)
+	buf.Write([]byte("\r\n"))
+	// buf.Write([]byte("Dear all,\n\r"))
+	// buf.Write([]byte("  This is Distributed Computing course website and password required when downloading materials.\n\r"))
+	// buf.Write([]byte("  http://zhiyuan.sjtu.edu.cn/courses/476 password：Lorenzo\n\r"))
+
+	// buf.WriteString("\n\r\n\r----------\n\r")
+	// buf.WriteString("Heng\n\r")
+
+	// start of attachment
+	buf.WriteString("--" + boundary + "\r\n")
+	buf.WriteString("Content-Type: application/octet-stream\n")
+	buf.WriteString("Content-Transfer-Encoding: base64\n")
+	buf.WriteString("Content-Disposition: attachment; filename=\"" + path.Base(strings.Trim(attachName, "\n")) + "\"\n\n")
+	b := make([]byte, base64.StdEncoding.EncodedLen(len(content)))
+	base64.StdEncoding.Encode(b, content)
+	buf.Write(b)
+	buf.WriteString("\n--" + boundary + "\r\n")
 
 	msg, _ = buf.ReadString(byte(0))
+	fmt.Println(msg)
 	return msg
 }
 
@@ -106,22 +154,26 @@ func main() {
 	}
 
 	sl := readStudentInfo()
+
+	attach, attachContent := readAttachInfo()
+
+	body := readMailBody()
+
 	fmt.Println(sl)
 	// to avoid server recognition, use gmail as default
 	auth := smtp.PlainAuth("", username, password, "smtp.gmail.com")
 
 	// fill message with student lab grades
 	for _, each := range sl {
-		title := "Lab 2/3/4 答辩安排"
+		title := "DC course website"
 		header := make(map[string]string)
 		header["From"] = username
 		header["To"] = each.addr
 		header["Subject"] = title
 		header["MIME-Version"] = "1.0"
-		header["Content-Type"] = "text/plain; charset=\"utf-8\""
 		// header["Content-Transfer-Encoding"] = "base64"
 
-		msgstr := []byte(makeMessage(each, header))
+		msgstr := []byte(makeMessage(each, header, body, attach, attachContent))
 
 		err = smtp.SendMail("smtp.gmail.com:587", auth, username, []string{each.addr}, msgstr)
 		if err != nil {
