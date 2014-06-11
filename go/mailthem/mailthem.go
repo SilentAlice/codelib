@@ -26,27 +26,43 @@ type SInfo struct {
 	addr string
 }
 
+// borrowed from github.com/scorredoira/email
 var boundary = "f46d043c813270fc6b04c2d223da"
+
+func oneLiner(prompt string) string {
+	reader := bufio.NewReader(os.Stdin)
+
+	fmt.Printf("%s", prompt)
+	line, err := reader.ReadString('\n')
+
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "read stdin error\n")
+		panic(err)
+	}
+
+	return strings.Trim(line, "\r\n")
+}
 
 // getAuthInfo get smtp authentication username and password
 // from command line using gopass
-func getAuthInfo() (string, string, error) {
-	reader := bufio.NewReader(os.Stdin)
-
-	fmt.Print("Enter username: ")
-	username, _ := reader.ReadString('\n')
+func getAuthInfo() (string, string) {
+	username := oneLiner("Enter username: ")
 
 	password, passerr := gopass.GetPass("Enter password: ")
-	return strings.Trim(username, "\n"), password, passerr
+	if passerr != nil {
+		fmt.Fprintf(os.Stderr, "get password error\n")
+		panic(passerr)
+	}
+
+	return username, password
 }
 
 // readStudentInfo reads student email addresses and name strings
 // from the contact file
 func readStudentInfo() []SInfo {
 	// read email addresses from a file
-	fmt.Print("Directory with address list: ")
-	addrListPath, err := bufio.NewReader(os.Stdin).ReadString('\n')
-	addrListFile, err := os.Open(strings.Trim(addrListPath, "\n"))
+	addrListPath := oneLiner("Directory with address list: ")
+	addrListFile, err := os.Open(addrListPath)
 	if err != nil {
 		panic(err)
 	}
@@ -74,30 +90,28 @@ func readStudentInfo() []SInfo {
 	return sl
 }
 
-func readAttachInfo() (filename string, content []byte) {
-	fmt.Print("Attachment filename: ")
+func readAttachInfo() map[string][]byte {
+	attachments := make(map[string][]byte)
 
-	filename, err := bufio.NewReader(os.Stdin).ReadString('\n')
-	if err != nil {
-		panic(err)
-	}
+	for {
+		filename := oneLiner("Attachment filename: ")
 
-	content, err = ioutil.ReadFile(strings.Trim(filename, "\n"))
-	if err != nil {
-		panic(err)
+		if filename == "" {
+			return attachments
+		}
+
+		content, err := ioutil.ReadFile(filename)
+		if err != nil {
+			panic(err)
+		}
+		attachments[filename] = content
 	}
-	return filename, content
 }
 
 func readMailBody() (body []byte) {
-	fmt.Print("Body file path: ")
+	filename := oneLiner("Body file path: ")
 
-	filename, err := bufio.NewReader(os.Stdin).ReadString('\n')
-	if err != nil {
-		panic(err)
-	}
-
-	body, err = ioutil.ReadFile(strings.Trim(filename, "\n"))
+	body, err := ioutil.ReadFile(filename)
 	if err != nil {
 		panic(err)
 	}
@@ -105,7 +119,9 @@ func readMailBody() (body []byte) {
 }
 
 // makeMessage generates message contents for each student
-func makeMessage(each SInfo, header map[string]string, body []byte, attachName string, content []byte) (msg string) {
+// Attachment part of this function is copied and modified from
+// https://github.com/scorredoira/email
+func makeMessage(each SInfo, header map[string]string, body []byte, attachments map[string][]byte) (msg string) {
 	var buf bytes.Buffer // A Buffer needs no initialization.
 
 	for k, v := range header {
@@ -115,7 +131,7 @@ func makeMessage(each SInfo, header map[string]string, body []byte, attachName s
 		buf.WriteString("\r\n")
 	}
 
-	if attachName != "" {
+	if len(attachments) > 0 {
 		buf.WriteString("Content-Type: multipart/mixed; boundary=" + boundary + "\r\n")
 		buf.WriteString("--" + boundary + "\r\n")
 	}
@@ -125,22 +141,18 @@ func makeMessage(each SInfo, header map[string]string, body []byte, attachName s
 	// start of body
 	buf.Write(body)
 	buf.Write([]byte("\r\n"))
-	// buf.Write([]byte("Dear all,\n\r"))
-	// buf.Write([]byte("  This is Distributed Computing course website and password required when downloading materials.\n\r"))
-	// buf.Write([]byte("  http://zhiyuan.sjtu.edu.cn/courses/476 password：Lorenzo\n\r"))
-
-	// buf.WriteString("\n\r\n\r----------\n\r")
-	// buf.WriteString("Heng\n\r")
 
 	// start of attachment
-	buf.WriteString("--" + boundary + "\r\n")
-	buf.WriteString("Content-Type: application/octet-stream\n")
-	buf.WriteString("Content-Transfer-Encoding: base64\n")
-	buf.WriteString("Content-Disposition: attachment; filename=\"" + path.Base(strings.Trim(attachName, "\n")) + "\"\n\n")
-	b := make([]byte, base64.StdEncoding.EncodedLen(len(content)))
-	base64.StdEncoding.Encode(b, content)
-	buf.Write(b)
-	buf.WriteString("\n--" + boundary + "\r\n")
+	for name, content := range attachments {
+		buf.WriteString("--" + boundary + "\r\n")
+		buf.WriteString("Content-Type: application/octet-stream\n")
+		buf.WriteString("Content-Transfer-Encoding: base64\n")
+		buf.WriteString("Content-Disposition: attachment; filename=\"" + path.Base(name) + "\"\n\n")
+		b := make([]byte, base64.StdEncoding.EncodedLen(len(content)))
+		base64.StdEncoding.Encode(b, content)
+		buf.Write(b)
+		buf.WriteString("\n--" + boundary + "\r\n")
+	}
 
 	msg, _ = buf.ReadString(byte(0))
 	fmt.Println(msg)
@@ -148,14 +160,13 @@ func makeMessage(each SInfo, header map[string]string, body []byte, attachName s
 }
 
 func main() {
-	username, password, err := getAuthInfo()
-	if err != nil {
-		fmt.Println(err)
-	}
+	username, password := getAuthInfo()
 
 	sl := readStudentInfo()
 
-	attach, attachContent := readAttachInfo()
+	attachments := readAttachInfo()
+
+	title := oneLiner("Title: ")
 
 	body := readMailBody()
 
@@ -165,7 +176,6 @@ func main() {
 
 	// fill message with student lab grades
 	for _, each := range sl {
-		title := "DC course website"
 		header := make(map[string]string)
 		header["From"] = username
 		header["To"] = each.addr
@@ -173,10 +183,9 @@ func main() {
 		header["MIME-Version"] = "1.0"
 		// header["Content-Transfer-Encoding"] = "base64"
 
-		msgstr := []byte(makeMessage(each, header, body, attach, attachContent))
+		msgstr := []byte(makeMessage(each, header, body, attachments))
 
-		err = smtp.SendMail("smtp.gmail.com:587", auth, username, []string{each.addr}, msgstr)
-		if err != nil {
+		if err := smtp.SendMail("smtp.gmail.com:587", auth, username, []string{each.addr}, msgstr); err != nil {
 			fmt.Println(err)
 		} else {
 			fmt.Printf("send ok %s\n", each.addr)
