@@ -62,7 +62,7 @@ daemonize(const char *wd, const char *log_ident)
 
     /* Open the log file */
     if (log_ident) {
-	openlog(log_ident, LOG_PID, LOG_DAEMON);
+	openlog(log_ident, LOG_PID | LOG_CONS, LOG_DAEMON);
     }
 
     return pid;
