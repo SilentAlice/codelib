@@ -3,6 +3,7 @@
 #include <inttypes.h>
 
 #include <infiniband/verbs.h>
+#include <infiniband/mad.h>
 
 #define MR_SIZE 4096
 #define CQ_SIZE 128
@@ -42,6 +43,7 @@ int main()
 	printf("device attr:\n");
 	printf("\tmax_qp: %d\n", device_attr.max_qp);
 	printf("\tphys_port_cnt: %d\n", device_attr.phys_port_cnt);
+	printf("\tnode_guid    : 0x%"PRIx64"\n", device_attr.node_guid);
 
 	struct ibv_port_attr port_attr;
 	if ((ret = ibv_query_port(ctx, 0, &port_attr)) < 0) {
@@ -52,6 +54,17 @@ int main()
 	printf("\tactive_mtu: %u\n",   port_attr.active_mtu & 0x7);
 	printf("\tactive_speed: %d\n", port_attr.active_speed);
 	printf("\tactive_width: %d\n", port_attr.active_width);
+	printf("\tgid tbl len : %d\n", port_attr.gid_tbl_len);
+
+	for (i = 0; i < port_attr.gid_tbl_len; i++) {
+		union ibv_gid gid;
+		if ((ret = ibv_query_gid(ctx, 1, i, &gid)) < 0) {
+			printf("gid index %d does not exists\n", i);
+			break;
+		}
+		printf("subnet_prefix: 0x%"PRIx64"\n", ntohll(gid.global.subnet_prefix));
+		printf("interface_id : 0x%"PRIx64"\n", ntohll(gid.global.interface_id));
+	}
 
 	printf("======\n");
 	printf("Create PD (Protecting Domain)\n");
