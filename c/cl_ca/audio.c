@@ -17,6 +17,7 @@ struct myAQStruct {
 };
 
 static struct myAQStruct myInfo;
+/* FIXME 441 is too small for some files */
 static UInt32 bufferSizeInSamples = 441;
 static UInt32 currentPacket;
 
@@ -33,16 +34,24 @@ static void AQTestBufferCallback(
     UInt32 numBytes;
     UInt32 nPackets = myInfo->mNumPacketsToRead;
  
+	printf("called\n");
     UInt32 bytesRead = bufferSizeInSamples * 4;
     UInt32 packetsRead = bufferSizeInSamples;
-    AudioFileReadPacketData(myInfo->mAudioFile, false, &bytesRead, NULL, currentPacket, &packetsRead, inCompleteAQBuffer->mAudioData);
+
+    AudioFileReadPacketData(
+			myInfo->mAudioFile,
+			false,
+			&bytesRead,
+			NULL,
+			currentPacket,
+			&packetsRead,
+			inCompleteAQBuffer->mAudioData);
     inCompleteAQBuffer->mAudioDataByteSize = bytesRead;
     currentPacket += packetsRead;
 
     if (bytesRead == 0) {
         AudioQueueStop(inAQ, false);
-    }
-    else {
+    } else {
         AudioQueueEnqueueBuffer(inAQ, inCompleteAQBuffer, 0, NULL);
     }
     /* printf("called\n"); */
@@ -78,40 +87,59 @@ void AudioEnginePropertyListenerProc (void *inUserData, AudioQueueRef inAQ, Audi
     //We are only interested in the property kAudioQueueProperty_IsRunning
     if (inID != kAudioQueueProperty_IsRunning) return;
 
-    //Get the status of the property
-    UInt32 isRunning = false;
-    UInt32 size = sizeof(isRunning);
-    AudioQueueGetProperty(myInfo.mQueue, kAudioQueueProperty_IsRunning, &isRunning, &size);
+	struct myAQStruct *myInfo = (struct myAQStruct *)inUserData;
 
-    if (isRunning) {
-        currentPacket = 0;
+	/* Get the current status of the AQ, running or stopped */ 
+    UInt32 isQueueRunning = false;
+    UInt32 size = sizeof(isQueueRunning);
+    AudioQueueGetProperty(myInfo->mQueue, kAudioQueueProperty_IsRunning, &isQueueRunning, &size);
 
-        /* NSString *fileName = @"/Users/roy/Documents/XCodeProjectsData/FUZZ/03.wav"; */
-        /* NSURL *fileURL = [[NSURL alloc] initFileURLWithPath: fileName]; */
-        /* AudioFileOpenURL((__bridge CFURLRef) fileURL, kAudioFileReadPermission, 0, &file); */
+	/* The callback event is the start of the queue */
+    if (isQueueRunning) {
+		/* reset current packet counter */
+        myInfo->mCurrentPacket = 0;
 
-        for (int i = 0; i < 3; i++){
-            AudioQueueAllocateBuffer(myInfo.mQueue, bufferSizeInSamples * 4, &myInfo.mBuffers[i]);
+        for (int i = 0; i < 3; i++) {
+			/*
+			 * For the first time allocate buffers for this AQ.
+			 * Buffers are reused in turns until the AQ stops 
+			 */
+            AudioQueueAllocateBuffer(myInfo->mQueue, bufferSizeInSamples * 4, &myInfo->mBuffers[i]);
 
             UInt32 bytesRead = bufferSizeInSamples * 4;
             UInt32 packetsRead = bufferSizeInSamples;
-            AudioFileReadPacketData(myInfo.mAudioFile, false, &bytesRead, NULL, currentPacket, &packetsRead, myInfo.mBuffers[i]->mAudioData);
-            myInfo.mBuffers[i]->mAudioDataByteSize = bytesRead;
-            currentPacket += packetsRead;
 
-            AudioQueueEnqueueBuffer(myInfo.mQueue, myInfo.mBuffers[i], 0, NULL);
+			/*
+			 * Read data from audio source into the buffer of AQ
+			 * supplied in this callback event. Buffers are used in turns
+			 * to hide the latency
+			 */
+            AudioFileReadPacketData(
+					myInfo->mAudioFile,
+					false, /* isUseCache, set to false */
+					&bytesRead,
+					NULL,
+					myInfo->mCurrentPacket,
+					&packetsRead,
+					myInfo->mBuffers[i]->mAudioData);
+			/* in case the buffer size is smaller than bytes requestd to read */ 
+            myInfo->mBuffers[i]->mAudioDataByteSize = bytesRead;
+            myInfo->mCurrentPacket += packetsRead;
+
+            AudioQueueEnqueueBuffer(myInfo->mQueue, myInfo->mBuffers[i], 0, NULL);
         }
-    }
-
-    else {
-        if (myInfo.mAudioFile != NULL) {
-            AudioFileClose(myInfo.mAudioFile);
-            myInfo.mAudioFile = NULL;
+    } else {
+		/* The callback event is the state of AQ changed to not running */
+        if (myInfo->mAudioFile != NULL) {
+			AudioQueueStop(myInfo->mQueue, false);
+            AudioFileClose(myInfo->mAudioFile);
+            myInfo->mAudioFile = NULL;
 
             for (int i = 0; i < 3; i++) {
-                AudioQueueFreeBuffer(myInfo.mQueue, myInfo.mBuffers[i]);
-                myInfo.mBuffers[i] = NULL;
+                AudioQueueFreeBuffer(myInfo->mQueue, myInfo->mBuffers[i]);
+                myInfo->mBuffers[i] = NULL;
             }
+			CFRunLoopStop(CFRunLoopGetCurrent());
         }
     }
 }
@@ -119,21 +147,13 @@ void AudioEnginePropertyListenerProc (void *inUserData, AudioQueueRef inAQ, Audi
 int
 main (int argc, const char *argv[])
 {
-    // Set up the pieces needed to play a sound.
-    /* SystemSoundID    mySSID; */
-    /* CFURLRef        myURLRef; */
-    /* myURLRef = CFURLCreateWithFileSystemPath ( */
-            /* kCFAllocatorDefault, */
-            /* CFSTR ("../../ComedyHorns.aif"), */
-            /* kCFURLPOSIXPathStyle, */
-            /* FALSE */
-            /* ); */
     CFURLRef audioFileURLRef;
     OSStatus ret;
 
     audioFileURLRef = CFURLCreateWithFileSystemPath (
             kCFAllocatorDefault,
-            CFSTR ("/Users/styx/p/test.wav"),
+			/* CFSTR ("../misc/test.wav"), */
+			CFSTR ("../misc/alin.wav"),
             kCFURLPOSIXPathStyle,
             FALSE
             );
@@ -144,7 +164,7 @@ main (int argc, const char *argv[])
             0,
             &myInfo.mAudioFile);
     if (ret != noErr) {
-        printf("fail to open audio file\n");
+        printf("fail to open audio file %x\n", ret);
         return 1;
     }
 
@@ -187,7 +207,7 @@ main (int argc, const char *argv[])
     }
 
     AudioQueueAddPropertyListener(myInfo.mQueue, kAudioQueueProperty_IsRunning,
-            AudioEnginePropertyListenerProc, NULL);
+            AudioEnginePropertyListenerProc, &myInfo);
     
 
     /* FIXME allocate AudioQueue buffer */ 
